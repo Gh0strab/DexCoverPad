@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DeX CoverPad</string>
+    <string name="accessibility_service_description">Enables the cover screen as a touchpad for Samsung DeX when HDMI is connected. This service captures touch events from the cover screen and translates them to mouse movements in DeX mode.</string>
+    <string name="enable_auto_dex">Auto-start DeX on HDMI</string>
+    <string name="enable_touchpad">Enable Cover Screen Touchpad</string>
+    <string name="service_running">DeX CoverPad is active</string>
+    <string name="hdmi_detected">HDMI connected - Starting DeX</string>
+    <string name="touchpad_active">Cover screen touchpad active</string>
+    <string name="setup_instructions">Quick Setup:\n1. Enable \"Auto-start DeX on HDMI\" below\n2. Tap \"Open Accessibility Settings\" and enable the touchpad\n3. Connect HDMI cable - DeX will start automatically!</string>
+    <string name="open_accessibility_settings">Open Accessibility Settings</string>
+</resources>
