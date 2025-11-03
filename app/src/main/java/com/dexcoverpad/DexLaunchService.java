@@ -26,6 +26,10 @@ public class DexLaunchService extends Service {
     private Handler handler = new Handler();
     private BroadcastReceiver hdmiReceiver;
     private boolean isMonitoring = false;
+    private CoverPresentation coverPresentation = null;
+    private AccessibilityForwarder forwarder = null;
+    private AccessibilityService accessibilityServiceInstance = null; // supply your running AccessibilityService here
+    private boolean presentationShown = false;
 
     @Override
     public void onCreate() {
@@ -217,6 +221,63 @@ public class DexLaunchService extends Service {
         handler.removeCallbacksAndMessages(null);
         Log.d(TAG, "Service destroyed");
     }
+    @Override
+    private void showCoverPresentationIfNeeded() {
+        if (presentationShown) return;
+        DisplayManager dm = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+        if (dm == null) return;
+        Display[] displays = dm.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
+        Display cover = null;
+        for (Display d : displays) {
+            if (d.getDisplayId() != Display.DEFAULT_DISPLAY) {
+                cover = d;
+                break;
+            }
+        }
+        if (cover == null) {
+            Log.d(TAG, "No cover display found");
+            return;
+        }
+    
+        int dexW = 1920; // obtain actual external display resolution programmatically if possible
+        int dexH = 1080;
+        
+        CoverTouchpadEngine engine = new CoverTouchpadEngine(accessibilityServiceInstance, dexW, dexH);
+        
+        coverPresentation = new CoverPresentation(this, coverDisplay, (event, cw, ch) -> {
+            // forward to engine
+            engine.onCoverTouch(event, cw, ch);
+        });
+    
+        try {
+            coverPresentation.show();
+            presentationShown = true;
+            Log.d(TAG, "CoverPresentation shown");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to show CoverPresentation: " + e.getMessage());
+        }
+    
+        // create forwarder with current accessibility instance (you must have it)
+        if (accessibilityServiceInstance != null) {
+            forwarder = new AccessibilityForwarder(accessibilityServiceInstance, dexW, dexH);
+        } else {
+            Log.w(TAG, "No AccessibilityService instance provided; gestures will not dispatch");
+        }
+    }
+    @Override
+    private void hideCoverPresentation() {
+        try {
+            if (coverPresentation != null) {
+                coverPresentation.dismiss();
+                coverPresentation = null;
+                presentationShown = false;
+                Log.d(TAG, "CoverPresentation dismissed");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error dismissing presentation: " + e.getMessage());
+        }
+    }
+
 
     @Override
     public IBinder onBind(Intent intent) {
