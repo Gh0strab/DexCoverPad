@@ -1,47 +1,71 @@
-#!/bin/sh
-# Gradle wrapper — downloads the Gradle distribution on first run.
+#!/usr/bin/env sh
+
+##############################################################################
+# Gradle wrapper script (fixed + simplified)
+##############################################################################
+
 set -e
 
-APP_HOME=$(cd "$(dirname "$0")" && pwd)
-WRAPPER_PROPS="$APP_HOME/gradle/wrapper/gradle-wrapper.properties"
+APP_NAME="Gradle"
+WRAPPER_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROPERTIES_FILE="$WRAPPER_DIR/gradle/wrapper/gradle-wrapper.properties"
 
-# Parse distributionUrl (unescape backslash-colons from .properties format)
-DIST_URL=$(grep "^distributionUrl=" "$WRAPPER_PROPS" | cut -d= -f2- | sed 's/\\://g' | tr -d '\r')
-DIST_BASE=$(grep "^distributionBase=" "$WRAPPER_PROPS" | cut -d= -f2 | tr -d '\r')
-DIST_PATH=$(grep "^distributionPath=" "$WRAPPER_PROPS" | cut -d= -f2 | tr -d '\r')
-
-if [ "$DIST_BASE" = "GRADLE_USER_HOME" ]; then
-    GRADLE_USER_HOME="${GRADLE_USER_HOME:-$HOME/.gradle}"
-    DIST_ROOT="$GRADLE_USER_HOME"
-else
-    DIST_ROOT="$APP_HOME"
+# --- Validate properties file ---
+if [ ! -f "$PROPERTIES_FILE" ]; then
+  echo "ERROR: gradle-wrapper.properties not found!"
+  exit 1
 fi
 
-DIST_FILENAME=$(basename "$DIST_URL")
-DIST_NAME="${DIST_FILENAME%.zip}"
-DIST_DIR="$DIST_ROOT/$DIST_PATH/$DIST_NAME"
+# --- Extract distribution URL ---
+distributionUrl=$(grep "^distributionUrl=" "$PROPERTIES_FILE" | cut -d= -f2-)
 
-if [ ! -d "$DIST_DIR" ]; then
-    echo "Downloading $DIST_URL ..."
-    mkdir -p "$DIST_DIR"
-    TMP_ZIP="$DIST_DIR/${DIST_FILENAME}"
-    if command -v curl >/dev/null 2>&1; then
-        curl -fL -o "$TMP_ZIP" "$DIST_URL"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -q -O "$TMP_ZIP" "$DIST_URL"
-    else
-        echo "Error: curl or wget required to download Gradle" >&2
-        exit 1
-    fi
-    unzip -q "$TMP_ZIP" -d "$DIST_DIR"
-    rm -f "$TMP_ZIP"
-fi
+# Fix escaped colon (IMPORTANT FIX)
+distributionUrl=$(echo "$distributionUrl" | sed 's/\\:/:/g')
 
-# The zip extracts to a single top-level directory (e.g. gradle-8.7/)
-GRADLE_EXTRACTED=$(find "$DIST_DIR" -maxdepth 1 -type d -name "gradle-*" | head -1)
-if [ -z "$GRADLE_EXTRACTED" ]; then
-    echo "Error: Could not find extracted Gradle directory in $DIST_DIR" >&2
+# --- Determine cache directory ---
+GRADLE_USER_HOME="${GRADLE_USER_HOME:-$HOME/.gradle}"
+DIST_DIR="$GRADLE_USER_HOME/wrapper/dists"
+
+mkdir -p "$DIST_DIR"
+
+# --- Extract filename ---
+ZIP_NAME=$(basename "$distributionUrl")
+DIST_NAME=$(basename "$ZIP_NAME" .zip)
+
+INSTALL_DIR="$DIST_DIR/$DIST_NAME"
+ZIP_PATH="$DIST_DIR/$ZIP_NAME"
+
+# --- Download if not already present ---
+if [ ! -d "$INSTALL_DIR" ]; then
+  echo "Downloading $distributionUrl ..."
+
+  if command -v curl >/dev/null 2>&1; then
+    curl -L -o "$ZIP_PATH" "$distributionUrl"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -O "$ZIP_PATH" "$distributionUrl"
+  else
+    echo "ERROR: Neither curl nor wget is installed."
     exit 1
+  fi
+
+  echo "Extracting $ZIP_NAME ..."
+  mkdir -p "$INSTALL_DIR"
+  unzip -q "$ZIP_PATH" -d "$INSTALL_DIR"
+
+  # Move inner folder up if needed
+  INNER_DIR=$(find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 -type d | head -n 1)
+  if [ -n "$INNER_DIR" ]; then
+    mv "$INNER_DIR"/* "$INSTALL_DIR/"
+    rmdir "$INNER_DIR"
+  fi
 fi
 
-exec "$GRADLE_EXTRACTED/bin/gradle" "$@"
+# --- Locate Gradle binary ---
+GRADLE_BIN=$(find "$INSTALL_DIR" -type f -name "gradle" | head -n 1)
+
+if [ ! -x "$GRADLE_BIN" ]; then
+  chmod +x "$GRADLE_BIN"
+fi
+
+# --- Execute Gradle ---
+exec "$GRADLE_BIN" "$@"
