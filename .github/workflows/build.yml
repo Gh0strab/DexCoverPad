@@ -35,7 +35,7 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      # Setup Gradle Build Tool with offline mode
+      # Setup Gradle Build Tool (with caching)
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -57,9 +57,9 @@ jobs:
             echo "✗ Gradle wrapper NOT found - this may cause download issues"
           fi
 
-      # Build Debug APK with offline mode
+      # ✅ FIXED: Build Debug APK (NO offline mode)
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace --offline || ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       # Decode signing key for release build
       - name: Decode Keystore
@@ -70,10 +70,10 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      # Build Release APK (optional, for tagged releases or manual trigger)
+      # Build Release APK
       - name: Build Release APK
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
-        run: ./gradlew assembleRelease --stacktrace
+        run: ./gradlew assembleRelease --stacktrace --no-daemon
         env:
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
