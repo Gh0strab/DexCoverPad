@@ -40,8 +40,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: wrapper
-          cache: true
-          cache-read-only: false
+          cache-disabled: false
 
       # Make gradlew executable (needed on Linux)
       - name: Make gradlew executable
